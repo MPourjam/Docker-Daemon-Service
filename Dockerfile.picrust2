@@ -1,0 +1,8 @@
+FROM mambaorg/micromamba:1.5.8 AS picrust2-builder
+ARG ENV_NAME=picrust2
+ARG PICRUST2_VERSION=2.6.2
+
+# Create env and pack it so it's relocatable
+RUN micromamba create -y -n ${ENV_NAME} -c bioconda -c conda-forge picrust2=${PICRUST2_VERSION} && \
+    micromamba clean --all --yes
+
