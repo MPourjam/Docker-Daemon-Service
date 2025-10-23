@@ -1,0 +1,53 @@
+volumes:
+  shared_data: {}
+  docker_root: {}
+  docker_certs: {}      # to share the certs between dind and celery
+
+networks:
+  appnet:
+
+services:  # Remote Docker-in-Docker (dind) in rootless mode for security
+  docker-daemon:
+    image: docker:27-dind-rootless
+    privileged: true
+    environment:
+     - DOCKER_TLS_CERTDIR=/certs
+     - DOCKER_TLS_SAN=DNS:docker-daemon,DNS:localhost,IP:127.0.0.1
+     - DOCKER_HOST=tcp://0.0.0.0:2376
+    expose: ["2376"]
+    volumes:
+      - docker_root:/var/lib/docker
+      - shared_data:/data:rw
+      - docker_certs:/certs               # Certificates are created by the image on first initialization.
+    networks: [appnet]
+    healthcheck:
+      test: ["CMD","sh","-lc","[ -f /certs/client/key.pem ]"]
+      interval: 3s
+      timeout: 2s
+      retries: 25
+
+  celery:  # Celery worker connecting to remote Docker daemon
+    image: python:3.12-slim
+    working_dir: /app
+    entrypoint: ["/bin/bash", "/app/start-celery.sh"]
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DOCKER_HOST: tcp://docker-daemon:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client     # <— client certs path
+    volumes:
+      - ./tasks.py:/app/tasks.py:ro
+      - ./start-celery.sh:/app/start-celery.sh:ro
+      - shared_data:/data:rw
+      - docker_certs:/certs:ro            # <— same volume, read-only
+    depends_on:
+      docker-daemon:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks: [appnet]
+
+  redis:
+    image: redis:7-alpine
+    networks: [appnet]
