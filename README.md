@@ -29,8 +29,8 @@ Meanwhile, Celery interacts with this daemon using the Docker SDK for Python, al
 ## ⚙️ Quick Start
 1. Clone the repository
 ```
-git clone https://github.com/MPourjam/Remote-Docker-Server-Setup.git
-cd Remote-Docker-Server-Setup
+git clone https://github.com/MPourjam/Docker-Daemon-Service.git
+cd Remote-Daemon-Service
 ```
 
 3. Build and start the services
